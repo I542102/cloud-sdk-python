@@ -34,13 +34,13 @@ from sap_cloud_sdk.agentgateway._models import (
     Agent,
     AgentCardFilter,
     AuthResult,
+    ConnectedSystem,
     MCPTool,
     MCPToolFilter,
 )
 from sap_cloud_sdk.agentgateway._token_cache import _GatewayUrlCache, _TokenCache
 from sap_cloud_sdk.agentgateway.exceptions import AgentGatewaySDKError
 from sap_cloud_sdk.agentgateway import _fragments
-from sap_cloud_sdk.agentgateway._fragments import ActiveIntegration
 from sap_cloud_sdk.core.telemetry import Module, Operation, record_metrics
 
 logger = logging.getLogger(__name__)
@@ -403,7 +403,7 @@ class AgentGatewayClient:
                 filter=MCPToolFilter(
                     names=["get-sales-order"],
                     ord_ids=["sap.s4:apiAccess:salesOrder:v1"],
-                    global_tenant_ids=["<gtid>"],
+                    gtids=["<gtid>"],
                 )
             )
             ```
@@ -524,14 +524,15 @@ class AgentGatewayClient:
             raise AgentGatewaySDKError(f"Agent card discovery failed: {e}") from e
 
     @record_metrics(Module.AGENTGATEWAY, Operation.AGENTGATEWAY_LIST_ACTIVE_INTEGRATIONS)
-    def list_active_integrations(self) -> list[ActiveIntegration]:
+    def list_active_integrations(self) -> list[ConnectedSystem]:
         """List all active backend system integrations for the current tenant.
 
         Returns the connected backend systems (e.g. SAP PCE, SAP S/4HANA) that
         are currently active for this tenant. Use this to determine which systems
         are connected and which GTIDs to pass when loading MCP tools.
 
-        Requires tenant_subdomain to be configured on the client.
+        Only supported for LoB agents. Requires tenant_subdomain to be configured
+        on the client.
 
         Returns:
             List of dicts, each with:
@@ -541,7 +542,8 @@ class AgentGatewayClient:
             Returns empty list if no active integrations exist.
 
         Raises:
-            AgentGatewaySDKError: If tenant_subdomain is not configured.
+            AgentGatewaySDKError: If tenant_subdomain is not configured, or if
+                called from a customer agent.
 
         Example:
             ```python
@@ -550,6 +552,17 @@ class AgentGatewayClient:
                 print(i["system_type"], i["global_tenant_id"])
             ```
         """
+        credentials_path = detect_customer_agent_credentials()
+        if credentials_path:
+            raise AgentGatewaySDKError(
+                "list_active_integrations is not supported for customer agents."
+            )
+
+        if detect_transparent_credentials():
+            raise AgentGatewaySDKError(
+                "list_active_integrations is not supported for customer agents."
+            )
+
         tenant = self._resolve_tenant_subdomain()
         return _fragments._list_active_integrations(tenant)
 

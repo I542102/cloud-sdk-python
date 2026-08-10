@@ -6,7 +6,6 @@ from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
 
 from sap_cloud_sdk.agentgateway._fragments import (
-    GTID_LABEL_KEY,
     LABEL_KEY,
     FragmentLabel,
     get_ias_fragment_name,
@@ -244,7 +243,7 @@ class TestListMcpFragments:
             filter_opt = call_args.kwargs.get("filter")
             assert len(filter_opt.filter_labels) == 2
             gtid_label = next(
-                lb for lb in filter_opt.filter_labels if lb.key == GTID_LABEL_KEY
+                lb for lb in filter_opt.filter_labels if lb.key == "sap-managed-runtime-gtid"
             )
             assert gtid_label.values == ["gtid-a", "gtid-b"]
 
@@ -820,7 +819,7 @@ class TestGetMcpToolsLob:
 
     @pytest.mark.asyncio
     async def test_passes_global_tenant_ids_to_list_mcp_fragments(self):
-        """global_tenant_ids in MCPToolFilter should be forwarded to list_mcp_fragments."""
+        """gtids in MCPToolFilter should be forwarded to list_mcp_fragments."""
         with patch("sap_cloud_sdk.agentgateway._lob.list_mcp_fragments") as mock_list:
             mock_list.return_value = []
 
@@ -828,7 +827,7 @@ class TestGetMcpToolsLob:
                 "tenant-sub",
                 "system-token",
                 60.0,
-                filter=MCPToolFilter(global_tenant_ids=["gtid-a", "gtid-b"]),
+                filter=MCPToolFilter(gtids=["gtid-a", "gtid-b"]),
             )
 
             mock_list.assert_called_once_with(
@@ -837,7 +836,7 @@ class TestGetMcpToolsLob:
 
     @pytest.mark.asyncio
     async def test_default_global_tenant_ids_is_none(self):
-        """Without global_tenant_ids filter, list_mcp_fragments is called with None."""
+        """Without gtids filter, list_mcp_fragments is called with None."""
         with patch("sap_cloud_sdk.agentgateway._lob.list_mcp_fragments") as mock_list:
             mock_list.return_value = []
 
